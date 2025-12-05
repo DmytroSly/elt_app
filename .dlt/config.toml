@@ -1,0 +1,14 @@
+# put your configuration values here
+
+[runtime]
+log_level="WARNING"  # the system log level of dlt
+# use the dlthub_telemetry setting to enable/disable anonymous usage data reporting, see https://dlthub.com/docs/reference/telemetry
+dlthub_telemetry = true
+
+[sources.filesystem.filesystem]
+local_dir="C:/Users/dpolishchuk_scalefre/Documents/Repos/csv_files"
+bucket_url="C:/Users/dpolishchuk_scalefre/Documents/Repos/csv_files"
+file_glob="*.csv"
+
+[destination.snowflake]
+keep_staged_files = true # true is default
