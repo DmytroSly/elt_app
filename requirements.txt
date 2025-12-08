@@ -1,1 +1,2 @@
 dlt[filesystem,snowflake]>=1.19.0
+dlt[postgres]

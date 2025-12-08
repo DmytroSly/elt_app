@@ -10,5 +10,8 @@ local_dir="C:/Users/dpolishchuk_scalefre/Documents/Repos/csv_files"
 bucket_url="C:/Users/dpolishchuk_scalefre/Documents/Repos/csv_files"
 file_glob="*.csv"
 
+
+[sources.sql_database]
+table = "<configure me>" # fill this in!
 [destination.snowflake]
 keep_staged_files = true # true is default
