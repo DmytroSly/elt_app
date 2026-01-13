@@ -70,7 +70,7 @@ def load_entire_database() -> None:
     print(info)
 
 
-def load_standalone_table_resource() -> None:
+def load_standalone_table_resource_example() -> None:
     """Load a few known tables with the standalone sql_table resource, request full schema and deferred
     table reflection"""
     pipeline = dlt.pipeline(
@@ -112,6 +112,43 @@ def load_standalone_table_resource() -> None:
     print(info)
     # Show inferred columns
     print(pipeline.default_schema.to_pretty_yaml())
+    
+
+def load_standalone_table_resource() -> None:
+    """Load a few known tables with the standalone sql_table resource, request full schema and deferred
+    table reflection"""
+    pipeline = dlt.pipeline(
+        pipeline_name="rfam_database",
+        destination='snowflake',
+        dataset_name="rfam_data",
+        dev_mode=False,
+    )
+
+    # Load a table incrementally starting at a given date
+    # Adding incremental via argument like this makes extraction more efficient
+    # as only rows newer than the start date are fetched from the table
+    # we also use `detect_precision_hints` to get detailed column schema
+    # and defer_table_reflect to reflect schema only during execution
+    table = sql_table(
+        table="customers",
+        incremental=dlt.sources.incremental(
+            "updated",
+        ),
+        reflection_level="full_with_precision",
+        defer_table_reflect=True,
+    )
+    # columns will be empty here due to defer_table_reflect set to True
+    print(table.compute_table_schema())
+
+    # Load all data from another table
+
+    # Run the resources together (just take one page of results to make it faster)
+    #info = pipeline.extract(table.add_limit(1), write_disposition="merge")
+    info = pipeline.run(table, write_disposition="merge")
+    print(info)
+    # Show inferred columns
+    print(pipeline.default_schema.to_pretty_yaml())
+    
 
 
 def select_with_end_value_and_row_order() -> None:
@@ -314,7 +351,8 @@ def specify_columns_to_load() -> None:
 
 if __name__ == "__main__":
     # Load selected tables with different settings
-    load_select_tables_from_database()
+    #load_select_tables_from_database()
+    load_standalone_table_resource()
 
     # load_entire_database()
     # select_with_end_value_and_row_order()
