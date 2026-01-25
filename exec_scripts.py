@@ -34,9 +34,14 @@ metadata.add_metadata_record(
 # -+ Add a pipeline postgres - Snowflake
 #   -+ Try loading tables
 #   -+ Loading standalone table
-#   - Loading a set of tables
-# - Add a pipeline filesystem - Snowflake
-#   - Try loading tables
+#   -+ How to specify a target shema for a table? - dataset_name is a schema
+#   -+ Load set of tables
+#   -+ Refactor metadata.py to have one function for select queries
+#   - Add a pipeline filesystem - Snowflake
+#   - Logging progress https://dlthub.com/docs/general-usage/pipeline
+
+# - Test schema evolution
+# - Test re-runs
 # - Start working on CLI to add connections, pipelines, and datasets
 #   - Accepting user input with input()  
 
