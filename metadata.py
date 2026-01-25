@@ -69,8 +69,7 @@ def drop_table(table_name: str, conn: sqlite3.Connection):
 def get_db_connection(conn: sqlite3.Connection = None) -> sqlite3.Connection:
     conn = sqlite3.connect(DATABASE_NAME) if conn is None else conn
     conn.execute("PRAGMA foreign_keys = 1") # enforce foreign key constraints
-    return conn
-    
+    return conn    
 
 def create_table(table_name: str, conn: sqlite3.Connection = None, replace_existing: bool = False):
     conn_inn = get_db_connection(conn)
@@ -108,10 +107,10 @@ def add_metadata_record(table_name: str, insert_values: dict, encrypt_columns: l
         VALUES ({','.join(list(len(insert_values.keys()) * '?'))})
         '''
     values = tuple(
-            map(
-                lambda v: json.dumps(v) if type(v) is dict else v, 
-                insert_values.values()
-            )
+                map(
+                    lambda v: json.dumps(v) if type(v) is dict else v, 
+                    insert_values.values()
+                )
             )    
     try:
         cursor.execute(insert_sql, (values))
@@ -123,76 +122,33 @@ def add_metadata_record(table_name: str, insert_values: dict, encrypt_columns: l
     
 # Quering metadata tables
 def get_platform_id(name: str, conn: sqlite3.Connection = None) -> int:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()
-    try:
-        result = cursor.execute('SELECT id FROM platform WHERE name = ?', (name,))
-        row = result.fetchone()
-        if row is not None:
-            return row[0]    
-    finally:
-        if conn is None:
-            conn_inn.close()
+    sql = 'SELECT id FROM platform WHERE name = ?'
+    result = get_metadata(sql, name, conn=conn)
+    return result[0]
 
 def get_platform_name(platform_id: int, conn: sqlite3.Connection = None) -> str:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()    
-    try:
-        result = cursor.execute('SELECT name FROM platform WHERE id = ?', (platform_id,))
-        row = result.fetchone()    
-        if row is not None:
-            return row[0]
-    finally:
-        if conn is None:
-            conn_inn.close()
+    sql = 'SELECT name FROM platform WHERE id = ?'
+    result = get_metadata(sql, platform_id, conn=conn)
+    return result[0]
     
 def get_driver_name(platform_name: str, conn: sqlite3.Connection = None) -> str:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()    
-    try:
-        result = cursor.execute('SELECT driver_name FROM platform WHERE name = ?', (platform_name,))
-        row = result.fetchone()
-        if row is not None:
-            return row[0]
-    finally:
-        if conn is None:
-            conn_inn.close()
+    sql = 'SELECT driver_name FROM platform WHERE name = ?'
+    result = get_metadata(sql, platform_name, conn=conn)
+    return result[0]
             
 def get_credentials(connection_name: str, conn: sqlite3.Connection = None) -> str | None:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()
-    result = cursor.execute('''
-        SELECT credentials
-        FROM connection
-        WHERE name = ?                 
-        ''', (connection_name,)
-    )
-    row = result.fetchone()
-    if row is not None:
-        return encryption.cipher.decrypt(row[0]).decode()
+    sql ='SELECT credentials FROM connection WHERE name = ?'
+    result = get_metadata(sql, connection_name, conn=conn)
+    if result is not None:
+        return encryption.cipher.decrypt(result[0]).decode()
 
 def get_connection_info(connection_name: str, conn: sqlite3.Connection = None) -> str | None:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()    
-    try:
-        result = cursor.execute('''
-        SELECT connection_details
-        FROM connection
-        WHERE name = ?                 
-        ''', (connection_name,)
-        )
-        row = result.fetchone()
-        if row is not None:
-            return row[0]
-    finally:
-        if conn is None:
-            conn_inn.close()
+    sql = 'SELECT connection_details FROM connection WHERE name = ?'
+    result = get_metadata(sql, connection_name, conn=conn)
+    return result[0]
             
 def get_pipeline_connections(pipeline_name: str, conn: sqlite3.Connection = None) -> tuple[str, str] | None:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()
-    try:
-        result = cursor.execute('''
+    sql = '''
             SELECT  c_src.NAME  AS src_connection_name,
                     c_dest.NAME AS dest_connection_name
             FROM   pipeline p
@@ -201,54 +157,47 @@ def get_pipeline_connections(pipeline_name: str, conn: sqlite3.Connection = None
                 INNER JOIN connection c_dest
                         ON p.destination_id = c_dest.id
             WHERE  p.NAME = ?                  
-        ''', (pipeline_name,)
-        )
-        row = result.fetchone()
-        if row is not None:
-            return row[0], row[1]
-    finally:
-        if conn is None:
-            conn_inn.close()
+        '''
+    result = get_metadata(sql, pipeline_name, conn=conn)
+    return result[0], result[1]
             
 def get_pipeline_id(pipeline_name: str, conn: sqlite3.Connection = None) -> int | None:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()
-    try:
-        result = cursor.execute('''
-            SELECT id
-            FROM   pipeline
-            WHERE  NAME = ?                   
-        ''', (pipeline_name,)
-        )
-        row = result.fetchone()
-        if row is not None:
-            return row[0]
-    finally:
-        if conn is None:
-            conn_inn.close()
+    sql = 'SELECT id FROM pipeline WHERE NAME = ?'
+    result = get_metadata(sql, pipeline_name, conn=conn)
+    return result[0]
             
 def get_incremental_column(pipeline_name: str, table_name: str, conn: sqlite3.Connection = None) -> str | None:
-    conn_inn = get_db_connection(conn)
-    cursor = conn_inn.cursor()
-    try:
-        result = cursor.execute('''
+    sql = '''
         SELECT d.incremental_column
         FROM   dataset d
             INNER JOIN pipeline p
                     ON d.pipeline_id = p.id
         WHERE   d.destination_table = ?
                 AND p.NAME = ?                 
-        ''', (table_name, pipeline_name,)
-        )
+        '''
+    result = get_metadata(sql, table_name, pipeline_name, conn=conn)
+    return result[0]
+    
+def get_metadata(sql: str, *sql_parameters, conn: sqlite3.Connection = None) -> tuple | None:
+    conn_inn = get_db_connection(conn)
+    cursor = conn_inn.cursor()
+    try:
+        result = cursor.execute(sql, sql_parameters)
         row = result.fetchone()
         if row is not None:
-            return row[0]
+            return row
     finally:
         if conn is None:
-            conn_inn.close()  
-
+            conn_inn.close()
     
 if __name__ == "__main__":    
     #create_metadata_tables()
-    print(get_pipeline_connections(pipeline_name="test_pipeline"))
+    # print(get_pipeline_connections(pipeline_name="test_pipeline"))    
+    #print(get_metadata('select 1 as col1 where 1=? and 1=?', '1', '1'))
+    print(get_metadata("select source_database, pipeline_id from dataset where id = ? and source_table = ?", '1', 'customers'))
     print(get_incremental_column(pipeline_name="test_pipeline", table_name="customers"))
+    print(get_pipeline_id('test_pipeline'))
+    print(get_pipeline_connections('test_pipeline'))
+    print(get_connection_info('test postgres connection'))
+    print(get_credentials('test postgres connection'))
+    print(get_driver_name('postgres'))
