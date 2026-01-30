@@ -36,7 +36,23 @@ class Pipeline:
     description: str
     id:  Optional[int] = field(default=None)
     
-
+@dataclass
+class Dataset:
+    name: str
+    pipeline: Pipeline
+    source_table: Optional[str] = field(default=None)
+    source_database: Optional[str] = field(default=None)
+    source_schema: Optional[str] = field(default=None)
+    destination_database: Optional[str] = field(default=None)
+    destination_table: Optional[str] = field(default=None)
+    incremental_column: Optional[str] = field(default=None)
+    id: Optional[int] = field(default=None)
+    
+    def __post_init__(self):
+        if self.source_table is None:
+            self.source_table = self.name
+        if self.destination_table is None:
+            self.destination_table = self.name
 class MetadataDB():
     def __init__(self, replace_existing_meta: bool = False, db_path: str = DATABASE_PATH):
         self.db_path = db_path
@@ -84,14 +100,14 @@ class MetadataDB():
                 ddl_create = '''
                 CREATE TABLE IF NOT EXISTS dataset (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
                     pipeline_id INTEGER NOT NULL,
-                    source_database TEXT NOT NULL,
-                    source_schema TEXT NOT NULL,
-                    source_table TEXT NOT NULL,
-                    destination_database TEXT NOT NULL,
-                    destination_schema TEXT NOT NULL,
-                    destination_table TEXT NOT NULL,
-                    incremental_column TEXT,
+                    source_database TEXT,
+                    source_schema TEXT,
+                    source_table TEXT,
+                    destination_database TEXT,
+                    destination_table TEXT,
+                    incremental_column,
                     FOREIGN KEY (pipeline_id) REFERENCES pipeline(id)
                 )
                 '''
@@ -231,6 +247,43 @@ class MetadataDB():
             )
         return pipeline_id
     
+    def add_dataset(self, dataset: Dataset) -> int:
+        insert_values = dict(
+            name=dataset.name,
+            source_table=dataset.source_table,
+            pipeline_id=dataset.pipeline.id,
+            source_database=dataset.source_database,
+            source_schema=dataset.source_schema,            
+            destination_database=dataset.destination_database,
+            destination_table=dataset.destination_table,
+            incremental_column=dataset.incremental_column
+        )
+        dataset_id = self._add_metadata_record(
+                table_name='dataset',
+                insert_values=insert_values
+            )
+        return dataset_id
+    
+    def get_dataset(self, id: int | None = None, name: str | None = None) -> Dataset:
+        column_list = [
+            'id', 'name', 'pipeline_id', 'source_database', 'source_schema',
+            'source_table', 'destination_database', 'destination_table',
+            'incremental_column'
+        ]
+        dataset = self._get_entity('dataset', column_list, id=id, name=name)
+        pipeline = self.get_pipeline(id=dataset[2])
+        return Dataset(
+            id=dataset[0],
+            name=dataset[1],
+            pipeline=pipeline,
+            source_database=dataset[3],
+            source_schema=dataset[4],
+            source_table=dataset[5],
+            destination_database=dataset[6],
+            destination_table=dataset[7],
+            incremental_column=dataset[8]
+        )
+    
 if __name__ == "__main__":
     db = MetadataDB()
     # test_platform = Platform(id=None, name='test platform', driver_name='test_driver')
@@ -275,5 +328,3 @@ if __name__ == "__main__":
     
     # print(db.add_connection(test_connetion))
     # print(db.get_connection(name='test_conn'))
-    
-    # TODO: Add dataset and methods
