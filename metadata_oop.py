@@ -53,6 +53,7 @@ class Dataset:
             self.source_table = self.name
         if self.destination_table is None:
             self.destination_table = self.name
+            
 class MetadataDB():
     def __init__(self, replace_existing_meta: bool = False, db_path: str = DATABASE_PATH):
         self.db_path = db_path
@@ -203,27 +204,29 @@ class MetadataDB():
         if entity is not None:
             return entity
     
-    def get_platform(self, id: int | None = None, name: str | None = None) -> Platform:
+    def get_platform(self, *, id: int | None = None, name: str | None = None) -> Platform:
             column_list = ['id', 'name', 'driver_name']  
             platform = self._get_entity('platform', column_list, id=id, name=name)
             return Platform(id=platform[0], name=platform[1], driver_name=platform[2])
     
-    def get_connection(self, id: int | None = None, name: str | None = None) -> Connection:
+    def get_connection(self, *, id: int | None = None, name: str | None = None) -> Connection:
         column_list = ['id', 'name', 'platform_id', 'connection_details', 'credentials']
         connection = self._get_entity('connection', column_list, id=id, name=name)
         platform = self.get_platform(id=connection[2])
-        cretentials = encryption.cipher.decrypt(connection[4]).decode()
+        cretentials = json.loads(encryption.cipher.decrypt(connection[4]).decode())
         return Connection(
                 id=connection[0],
                 name=connection[1],
                 platform=platform,
-                connection_details=connection[3],
+                connection_details=json.loads(connection[3]),
                 credentials=cretentials
             )
     
-    def get_pipeline(self, id: int | None = None, name: str | None = None) -> Pipeline:
+    def get_pipeline(self, *, id: int | None = None, name: str | None = None) -> Pipeline:
         column_list = ['id', 'name', 'source_id', 'destination_id', 'description']
         pipeline = self._get_entity('pipeline', column_list, id=id, name=name)
+        if not pipeline:
+            return None
         source_conn = self.get_connection(id=pipeline[2])
         dest_conn = self.get_connection(id=pipeline[3])
         return Pipeline (
@@ -264,25 +267,30 @@ class MetadataDB():
             )
         return dataset_id
     
-    def get_dataset(self, id: int | None = None, name: str | None = None) -> Dataset:
+    def get_dataset(self, *, id: int | None = None, name: str | None = None) -> Dataset:
+        # Pipeline name or id should be also passed as an argument if dataset name is not unique
+        # Consider making dataset name unuque or introduce a pipeline argument
         column_list = [
             'id', 'name', 'pipeline_id', 'source_database', 'source_schema',
             'source_table', 'destination_database', 'destination_table',
             'incremental_column'
         ]
         dataset = self._get_entity('dataset', column_list, id=id, name=name)
-        pipeline = self.get_pipeline(id=dataset[2])
-        return Dataset(
-            id=dataset[0],
-            name=dataset[1],
-            pipeline=pipeline,
-            source_database=dataset[3],
-            source_schema=dataset[4],
-            source_table=dataset[5],
-            destination_database=dataset[6],
-            destination_table=dataset[7],
-            incremental_column=dataset[8]
-        )
+        if dataset:
+            pipeline = self.get_pipeline(id=dataset[2])
+            return Dataset(
+                id=dataset[0],
+                name=dataset[1],
+                pipeline=pipeline,
+                source_database=dataset[3],
+                source_schema=dataset[4],
+                source_table=dataset[5],
+                destination_database=dataset[6],
+                destination_table=dataset[7],
+                incremental_column=dataset[8]
+            )
+        else:
+            return None
     
 if __name__ == "__main__":
     db = MetadataDB()
