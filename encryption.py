@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()  # loads .env from cwd or parent directories
 import os
 from cryptography.fernet import Fernet
 

@@ -1,33 +1,28 @@
-import metadata
-from metadata import add_metadata_record, get_pipeline_id
-from importlib import reload
-
-import dlt
-from dlt.destinations import snowflake
-from dlt.sources.sql_database import sql_database, sql_table, Table
-from dlt.sources.credentials import ConnectionStringCredentials
-
 import sqlite3
-import json
 
+class MyDB:
+    def __init__(self):
+        print('Initialization')
+        self.conn = sqlite3.connect('../elt_app_metadata.db')
+    def __enter__(self):
+        print('Enter')
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print('Exit')
+        if exc_type:
+            print('--Printing errors')
+            print('Type: ', exc_type)
+            print('Value: ', exc_val)
+            print('Traceback: ', exc_tb)
+        if self.conn:
+            self.conn.close()
+        return True  # Don't hide errors
 
-reload(metadata)
-
-dataset_record = dict(
-    pipeline_id=metadata.get_pipeline_id('test_pipeline'),
-    source_database='db_source_for_dlt',
-    source_schema='public',
-    source_table='employees',
-    destination_database='hub_speak_dmytro_base',
-    destination_schema='postgres_data',
-    destination_table='employees',
-    incremental_column='updated'
-)
-
-metadata.add_metadata_record(
-    table_name='dataset',
-    insert_values=dataset_record
-)
+# This error will be raised:
+with MyDB() as db:
+    raise ValueError("Executiion. Something broke!")
+    #print('Execution')
+# ValueError: Something broke! <- You see this
 
 
 # TODO next steps:
