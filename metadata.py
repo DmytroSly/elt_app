@@ -27,7 +27,7 @@ def get_table_definition(table_name: str) -> str:
                 name TEXT UNIQUE NOT NULL,
                 platform_id INTEGER NOT NULL,
                 connection_details NOT NULL,
-                credentials TEXT NOT NULL,
+                credentials TEXT,
                 FOREIGN KEY (platform_id) REFERENCES platform(id)
             )
             '''
