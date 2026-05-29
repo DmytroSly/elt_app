@@ -3,3 +3,4 @@ dlt[postgres]
 sqlalchemy
 python-dotenv
 pandas
+streamlit
