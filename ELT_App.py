@@ -1,4 +1,5 @@
 import streamlit as st
+from st_navigation import sidebar_navigation
 
 st.set_page_config(
     page_title="ELT App",
@@ -10,4 +11,9 @@ st.set_page_config(
     # }
 )
 
+st.title("ELT App") 
 st.write('Hello!')
+
+sidebar_navigation()
+
+
