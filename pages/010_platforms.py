@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from metadata import MetadataDB
+from st_navigation import sidebar_navigation
 
 
 
@@ -18,6 +19,8 @@ st.set_page_config(
     #     'About': "# This is a header. This is an *extremely* cool app!"
     # }
 )
+
+sidebar_navigation()
 
 st.header('Platforms')
 st.table(platforms)
