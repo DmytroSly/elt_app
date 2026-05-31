@@ -24,23 +24,18 @@ st.set_page_config(
 )
 sidebar_navigation()
 
-selected_connection = st.query_params.get("connection")
-connection_names = connections["name"].tolist()
+# Remove sidebar from here later
+# connection_names = connections["name"].sort_values()
+# add_sidebar = st.sidebar.selectbox(
+#     "Connections",
+#     connection_names
+# )
 
-if selected_connection not in connection_names:
-    selected_connection = connection_names[0] if connection_names else None
-
-add_sidebar = st.sidebar.selectbox(
-    "Connections",
-    connection_names,
-    index=connection_names.index(selected_connection) if selected_connection else None,
-)
-
-connections_filt = connections[connections["name"] == add_sidebar]
+#connections_filt = connections[connections["name"] == add_sidebar]
 #connections.columns = ["ID", "Name", "Driver Name"]
 #connections = connetions.sort_values(by="ID")[["Name", "Driver Name"]]
 
-connections_display = connections_filt.copy()
+connections_display = connections.copy()
 connections_display["name"] = connections_display["name"].apply(
     lambda name: (
         f'<a href="/connection_details?connection_name={quote(name)}" target="_self">'
