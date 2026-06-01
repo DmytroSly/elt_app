@@ -43,6 +43,38 @@ st.table(data=platform,
          width="content"
          )
 
+if "edit_mode" not in st.session_state:
+    st.session_state.edit_mode = False
+
+platform_edited = {}
+for key, value in platform.items():
+    platform_edited[key] = st.text_input(label=key, value=value, disabled=not st.session_state.edit_mode)
+
+left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
+edit_button = left.button("Edit", use_container_width=True)
+cancel_button = middle.button("Cancel", use_container_width=True)
+save_button = right.button("Save", use_container_width=True)
+
+if edit_button:
+    st.session_state.edit_mode = True
+    st.rerun()
+    
+if cancel_button:
+    st.session_state.edit_mode = False
+    st.rerun()
+ 
+    
+if save_button:
+    st.session_state.edit_mode = False
+    # TODO: write changes to the database
+    st.rerun()
+ 
+st.subheader("Platform edited")
+st.table(data=platform_edited,
+         border="horizontal",
+         width="content"
+         )   
+
 st.subheader("Connectiion details")
 st.table(data=connection_details_col_names,
          border="horizontal",
