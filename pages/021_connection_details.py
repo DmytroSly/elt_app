@@ -14,10 +14,9 @@ db = MetadataDB()
 connection = db.get_connection(name=connection_name)
 
 platform = connection.platform.__dict__
-platform["Name"] = platform.pop("name")
-platform["Driver Name"] = platform.pop("driver_name")
-platform["ID"] = platform.pop("id")
-#platform = dict(sorted(platform.items()))
+platform_col_names = {}
+for key in platform.keys():
+    platform_col_names[key.title().replace('_', ' ')] = platform[key]
 
 connection_details = connection.connection_details
 connection_details_col_names = {}
@@ -33,22 +32,50 @@ st.set_page_config(
     #     'About': "# This is a header. This is an *extremely* cool app!"
     # }
 )
+
+if "edit_mode" not in st.session_state:
+    st.session_state.edit_mode = False
 sidebar_navigation()
 
 st.header(connection_name or "Connection Details")
 
 st.subheader("Platform")
-st.table(data=platform,
-         border="horizontal",
-         width="content"
-         )
+for key, value in platform_col_names.items():
+    label_col, input_col = st.columns([1, 3])
+    with label_col:
+        #st.write(key) # with st.write the text is a bit higher than the text in the text box
+        st.markdown(
+            f"<div style='padding-top: 8px'>{key}</div>",
+            unsafe_allow_html=True
+        )
+    with input_col:
+        platform[key] = st.text_input(
+            label=key,
+            value=value,
+            key=f"platform_{key}",
+            disabled=True,
+            label_visibility="collapsed"
+        )  
 
-if "edit_mode" not in st.session_state:
-    st.session_state.edit_mode = False
+st.subheader("Connection details")
 
-platform_edited = {}
-for key, value in platform.items():
-    platform_edited[key] = st.text_input(label=key, value=value, disabled=not st.session_state.edit_mode)
+connecton_edited = {}
+for key, value in connection_details_col_names.items():
+    label_col, input_col = st.columns([1, 3])
+    with label_col:
+        #st.write(key) # with st.write the text is a bit higher than the text in the text box
+        st.markdown(
+            f"<div style='padding-top: 8px'>{key}</div>",
+            unsafe_allow_html=True
+        )
+        with input_col:
+            connecton_edited[key] = st.text_input(
+                label=key,
+                value=value,
+                key=f"platform_{key}",
+                disabled=not st.session_state.edit_mode,
+                label_visibility="collapsed"
+            )
 
 left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
 edit_button = left.button("Edit", use_container_width=True)
@@ -68,15 +95,3 @@ if save_button:
     st.session_state.edit_mode = False
     # TODO: write changes to the database
     st.rerun()
- 
-st.subheader("Platform edited")
-st.table(data=platform_edited,
-         border="horizontal",
-         width="content"
-         )   
-
-st.subheader("Connectiion details")
-st.table(data=connection_details_col_names,
-         border="horizontal",
-         width="content"
-         )
