@@ -223,6 +223,41 @@ class MetadataDB():
         conn.commit()
         return cursor.lastrowid
     
+    def _update_metadata_record(self, table_name: str, update_values: dict, encrypt_columns: list = []) -> int:
+        conn = self.conn
+        if 'id' not in update_values or update_values['id'] is None:
+            raise ValueError("Column 'id' is required to update a metadata record")
+        
+        record_id = update_values['id']
+        update_values = update_values.copy()
+        update_values.pop('id')
+        
+        if len(update_values) == 0:
+            raise ValueError("At least one column must be provided to update a metadata record")
+        
+        if len(encrypt_columns) > 0:
+            for col in encrypt_columns:
+                if col in update_values and update_values[col]: # if column contains a value
+                    col_json = json.dumps(update_values[col]) if type(update_values[col]) is dict else update_values[col]
+                    update_values[col] = encryption.cipher.encrypt(col_json.encode())
+        
+        cursor = conn.cursor()
+        set_columns_str = ', '.join(map(lambda col: f'{col} = ?', update_values.keys()))
+        update_sql = f'''
+            UPDATE {table_name}
+            SET {set_columns_str}
+            WHERE id = ?
+            '''
+        values = tuple(
+                    map(
+                        lambda v: json.dumps(v) if type(v) is dict else v,
+                        update_values.values()
+                    )
+                ) + (record_id,)
+        cursor.execute(update_sql, values)
+        conn.commit()
+        return record_id
+    
     def _get_metadata(self, sql: str, *sql_parameters) -> tuple | None:
         conn = self.conn
         cursor = conn.cursor()
@@ -247,6 +282,22 @@ class MetadataDB():
         connection_id = self._add_metadata_record(
                 table_name='connection',
                 insert_values=insert_values,
+                encrypt_columns=['credentials']
+            )
+        connection.id = connection_id
+        return connection
+    
+    def update_connection(self, connection: Connection) -> Connection:
+        update_values = dict(
+            id=connection.id,
+            name=connection.name,
+            #platform_id=connection.platform.id, # platforn cannot be updated
+            connection_details=connection.connection_details,
+            credentials=connection.credentials
+        )
+        connection_id = self._update_metadata_record(
+                table_name='connection',
+                update_values=update_values,
                 encrypt_columns=['credentials']
             )
         connection.id = connection_id
