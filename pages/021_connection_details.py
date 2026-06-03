@@ -5,23 +5,17 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import pandas as pd
-from metadata import MetadataDB
+from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
-connection_name = st.query_params.get("connection_name", "")
+connection_name = st.query_params.get("connection_name")
 
 db = MetadataDB()
 connection = db.get_connection(name=connection_name)
 
 platform = connection.platform.__dict__
-platform_col_names = {}
-for key in platform.keys():
-    platform_col_names[key.title().replace('_', ' ')] = platform[key]
 
 connection_details = connection.connection_details
-connection_details_col_names = {}
-for key in connection_details.keys():
-    connection_details_col_names[key.title().replace('_', ' ')] = connection_details[key]
 
 st.set_page_config(
     page_title=connection_name or "Connection Details",
@@ -38,14 +32,35 @@ if "edit_mode" not in st.session_state:
 sidebar_navigation()
 
 st.header(connection_name or "Connection Details")
+# Connection name and id
+connection_edited = {}
+for key in ["id", "name"]:
+    label_col, input_col = st.columns([1, 3])
+    
+    with label_col:
+        #st.write(key) # with st.write the text is a bit higher than the text in the text box
+        st.markdown(
+            f"<div style='padding-top: 8px'>{key.title()}</div>",
+            unsafe_allow_html=True
+        )
+    
+    disabled = True if key == 'id' else not st.session_state.edit_mode
+    with input_col:
+        connection_edited[key] = st.text_input(
+            label=key,
+            value=getattr(connection, key),
+            key=f"connection_{key}",
+            disabled=disabled,
+            label_visibility="collapsed"
+        )  
 
 st.subheader("Platform")
-for key, value in platform_col_names.items():
+for key, value in platform.items():
     label_col, input_col = st.columns([1, 3])
     with label_col:
         #st.write(key) # with st.write the text is a bit higher than the text in the text box
         st.markdown(
-            f"<div style='padding-top: 8px'>{key}</div>",
+            f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
             unsafe_allow_html=True
         )
     with input_col:
@@ -59,28 +74,28 @@ for key, value in platform_col_names.items():
 
 st.subheader("Connection details")
 
-connecton_edited = {}
-for key, value in connection_details_col_names.items():
+connecton_details_edited = {}
+for key, value in connection_details.items():
     label_col, input_col = st.columns([1, 3])
     with label_col:
         #st.write(key) # with st.write the text is a bit higher than the text in the text box
         st.markdown(
-            f"<div style='padding-top: 8px'>{key}</div>",
+            f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
             unsafe_allow_html=True
         )
         with input_col:
-            connecton_edited[key] = st.text_input(
+            connecton_details_edited[key] = st.text_input(
                 label=key,
                 value=value,
-                key=f"platform_{key}",
+                key=f"connection_details_{key}",
                 disabled=not st.session_state.edit_mode,
                 label_visibility="collapsed"
             )
 
 left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
-edit_button = left.button("Edit", use_container_width=True)
-cancel_button = middle.button("Cancel", use_container_width=True)
-save_button = right.button("Save", use_container_width=True)
+edit_button = left.button("Edit", use_container_width=True, disabled=st.session_state.edit_mode)
+cancel_button = middle.button("Cancel", use_container_width=True, disabled=not st.session_state.edit_mode)
+save_button = right.button("Save", use_container_width=True, disabled=not st.session_state.edit_mode)
 
 if edit_button:
     st.session_state.edit_mode = True
@@ -88,10 +103,17 @@ if edit_button:
     
 if cancel_button:
     st.session_state.edit_mode = False
-    st.rerun()
- 
+    st.rerun() 
     
 if save_button:
     st.session_state.edit_mode = False
-    # TODO: write changes to the database
+    connection_edited = Connection(
+        name=connection_edited['name'],
+        platform=platform,
+        connection_details=connecton_details_edited,
+        credentials=connection.credentials,
+        id=connection_edited['id']
+    )
+    db.update_connection(connection_edited)
+    st.query_params["connection_name"] = connection_edited.name
     st.rerun()
