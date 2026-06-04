@@ -8,9 +8,9 @@ import pandas as pd
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
+# TODO: delete/add fields to connection details
 # TODO: add Back button to the upper left corner
-# TODO: test changes to connection details
-# TODO: delete/add fields to connetion details 
+
 
 connection_name = st.query_params.get("connection_name")
 
