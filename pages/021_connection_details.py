@@ -8,6 +8,10 @@ import pandas as pd
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
+# TODO: add Back button to the upper left corner
+# TODO: test changes to connection details
+# TODO: delete/add fields to connetion details 
+
 connection_name = st.query_params.get("connection_name")
 
 db = MetadataDB()
@@ -29,6 +33,17 @@ st.set_page_config(
 
 if "edit_mode" not in st.session_state:
     st.session_state.edit_mode = False
+
+def enable_edit_mode():
+    st.session_state.edit_mode = True
+
+def cancel_edit_mode():
+    st.session_state.edit_mode = False
+    st.session_state["connection_name"] = connection.name
+    
+    for key, value in connection_details.items():
+        st.session_state[f"connection_details_value_{key}"] = value
+
 sidebar_navigation()
 
 st.header(connection_name or "Connection Details")
@@ -74,7 +89,7 @@ for key, value in platform.items():
 
 st.subheader("Connection details")
 
-connecton_details_edited = {}
+connection_details_edited = {}
 for key, value in connection_details.items():
     label_col, input_col = st.columns([1, 3])
     with label_col:
@@ -83,34 +98,45 @@ for key, value in connection_details.items():
             f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
             unsafe_allow_html=True
         )
+        # edited_key = st.text_input(
+        #     label=key,
+        #     value=key,
+        #     key=f"connection_details_key_{key}",
+        #     disabled=not st.session_state.edit_mode,
+        #     label_visibility="collapsed"
+        # )
+        # connection_details_edited[edited_key] = connection_details[key]
+        
         with input_col:
-            connecton_details_edited[key] = st.text_input(
+            connection_details_edited[key] = st.text_input(
                 label=key,
                 value=value,
-                key=f"connection_details_{key}",
+                key=f"connection_details_value_{key}",
                 disabled=not st.session_state.edit_mode,
                 label_visibility="collapsed"
             )
 
 left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
-edit_button = left.button("Edit", use_container_width=True, disabled=st.session_state.edit_mode)
-cancel_button = middle.button("Cancel", use_container_width=True, disabled=not st.session_state.edit_mode)
+edit_button = left.button(
+    "Edit",
+    use_container_width=True,
+    disabled=st.session_state.edit_mode,
+    on_click=enable_edit_mode
+)
+cancel_button = middle.button(
+    "Cancel",
+    use_container_width=True,
+    disabled=not st.session_state.edit_mode,
+    on_click=cancel_edit_mode
+)
 save_button = right.button("Save", use_container_width=True, disabled=not st.session_state.edit_mode)
 
-if edit_button:
-    st.session_state.edit_mode = True
-    st.rerun()
-    
-if cancel_button:
-    st.session_state.edit_mode = False
-    st.rerun() 
-    
 if save_button:
     st.session_state.edit_mode = False
     connection_edited = Connection(
         name=connection_edited['name'],
         platform=platform,
-        connection_details=connecton_details_edited,
+        connection_details=connection_details_edited,
         credentials=connection.credentials,
         id=connection_edited['id']
     )
