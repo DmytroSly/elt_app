@@ -43,6 +43,7 @@ def cancel_edit_mode():
     
     for key, value in connection_details.items():
         st.session_state[f"connection_details_value_{key}"] = value
+        st.session_state[f"connection_details_key_{key}"] = key
 
 sidebar_navigation()
 
@@ -90,22 +91,25 @@ for key, value in platform.items():
 st.subheader("Connection details")
 
 connection_details_edited = {}
+keys_to_del = []
 for key, value in connection_details.items():
     label_col, input_col = st.columns([1, 3])
     with label_col:
         #st.write(key) # with st.write the text is a bit higher than the text in the text box
-        st.markdown(
-            f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
-            unsafe_allow_html=True
-        )
-        # edited_key = st.text_input(
-        #     label=key,
-        #     value=key,
-        #     key=f"connection_details_key_{key}",
-        #     disabled=not st.session_state.edit_mode,
-        #     label_visibility="collapsed"
+        # st.markdown(
+        #     f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
+        #     unsafe_allow_html=True
         # )
-        # connection_details_edited[edited_key] = connection_details[key]
+        edited_key = st.text_input(
+            label=key,
+            value=key,
+            key=f"connection_details_key_{key}",
+            disabled=not st.session_state.edit_mode,
+            label_visibility="collapsed"
+        )
+        connection_details_edited[edited_key] = connection_details[key]
+        if edited_key != key:
+            keys_to_del.append(key)
         
         with input_col:
             connection_details_edited[key] = st.text_input(
@@ -115,6 +119,9 @@ for key, value in connection_details.items():
                 disabled=not st.session_state.edit_mode,
                 label_visibility="collapsed"
             )
+        
+for key in keys_to_del:
+    del connection_details_edited[key]
 
 left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
 edit_button = left.button(
