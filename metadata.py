@@ -28,6 +28,32 @@ class Connection:
     credentials: Optional[Dict[str, Any]] = field(repr=False, default=None) # or dict[str, any] without an import # repr=False not include into the print output
     id: Optional[int] = field(default=None)
     
+    def __eq__(self, other) -> bool:
+        '''Written by Codex'''
+        if not isinstance(other, Connection):
+            return False
+        
+        def normalize_platform(platform):
+            if isinstance(platform, Platform):
+                return platform.__dict__
+            return platform
+        
+        def normalize_value(value):
+            return str(value) if value is not None else None
+        
+        def normalize_dict(value):
+            if value is None:
+                return None
+            return {key: normalize_value(val) for key, val in value.items()}
+        
+        return (
+            normalize_value(self.id) == normalize_value(other.id)
+            and self.name == other.name
+            and normalize_dict(normalize_platform(self.platform)) == normalize_dict(normalize_platform(other.platform))
+            and normalize_dict(self.connection_details) == normalize_dict(other.connection_details)
+            and normalize_dict(self.credentials) == normalize_dict(other.credentials)
+        )
+    
 @dataclass
 class Pipeline:
     name: str
@@ -224,6 +250,7 @@ class MetadataDB():
         return cursor.lastrowid
     
     def _update_metadata_record(self, table_name: str, update_values: dict, encrypt_columns: list = []) -> int:
+        '''Written by Codex'''
         conn = self.conn
         if 'id' not in update_values or update_values['id'] is None:
             raise ValueError("Column 'id' is required to update a metadata record")
