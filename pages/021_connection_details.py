@@ -61,11 +61,11 @@ def cancel_edit_mode():
         st.session_state[f"connection_details_key_{key}"] = key
     reset_add_text_boxes()
     
-# @st.dialog("Uncommited changes")
-# def uncommited_changes():
-#     st.write(f"Add or remove new key and value before saving")
-#     if st.button("Ok"):
-#         st.rerun()
+@st.dialog("Uncommited changes")
+def uncommited_changes():
+    st.write(f"Add or remove new key and value before saving or click 'Cancel'")
+    if st.button("Got it"):
+        st.rerun()
     
 sidebar_navigation()
 
@@ -196,14 +196,12 @@ save_button = right.button(
     "Save",
     use_container_width=True,
     disabled=not st.session_state.edit_mode,
-    on_click=reset_add_text_boxes,
     )
 
 if save_button:
-    # if new_key != '' or new_value != '':
-    #     uncommited_changes()
-    #     st.stop()
-        
+    if new_key != '' or new_value != '':
+        uncommited_changes()
+        st.stop()        
     st.session_state.edit_mode = False
     connection_edited = Connection(
         name=connection_edited['name'],
