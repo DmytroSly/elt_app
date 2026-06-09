@@ -21,6 +21,7 @@ connection = db.get_connection(name=connection_name)
 platform = connection.platform.__dict__
 
 connection_details = connection.connection_details
+credentials = connection.credentials
 
 st.set_page_config(
     page_title=connection_name or "Connection Details",
@@ -35,18 +36,20 @@ st.set_page_config(
 if "edit_mode" not in st.session_state:
     st.session_state.edit_mode = False
     
-def delete_dict_key(key):
-    del st.session_state.connection_details_edited[key]
+def delete_dict_key(details_name_edited, key):
+    del st.session_state[details_name_edited][key]
     #st.write('Deleted!')
     
 def reset_add_text_boxes():           
     st.session_state.connection_details_new_value = ''
     st.session_state.connection_details_new_key = ''
+    st.session_state.credentials_new_value = ''
+    st.session_state.credentials_new_key = ''
     
-def add_dict_key(connection_details_edited, key, value):
+def add_dict_key(details_name_edited, details_edited, key, value):
     if key != '' and value != '':
-        st.session_state.connection_details_edited[key] = value
-        connection_details_edited[key] = value
+        st.session_state[details_name_edited][key] = value
+        details_edited[key] = value
         reset_add_text_boxes()
 
 def enable_edit_mode():
@@ -55,11 +58,78 @@ def enable_edit_mode():
 def cancel_edit_mode():
     st.session_state.edit_mode = False
     st.session_state["connection_name"] = connection.name    
-    st.session_state.connection_details_edited = connection.connection_details.copy()    
+    st.session_state.connection_details_edited = connection.connection_details.copy()
+    st.session_state.credentials_edited = connection.credentials.copy()
     for key, value in connection_details.items():
         st.session_state[f"connection_details_value_{key}"] = value
         st.session_state[f"connection_details_key_{key}"] = key
+    for key, value in credentials.items():
+        st.session_state[f"credentials_value_{key}"] = value
+        st.session_state[f"credentials_key_{key}"] = key
     reset_add_text_boxes()
+    
+def add_editable_details(details_name: str, hide_value: bool = False):
+    details_name_edited = f"{details_name}_edited"
+    if f"{details_name_edited}" not in st.session_state:
+        st.session_state[details_name_edited] = getattr(connection, details_name).copy()        
+    details_edited = {}
+    for key, value in st.session_state[details_name_edited].items():
+        label_col, input_col, button_col = st.columns([1, 3, 0.4])
+        with label_col:
+            edited_key = st.text_input(
+                label=key,
+                value=key,
+                key=f"{details_name}_key_{key}",
+                disabled=not st.session_state.edit_mode,
+                label_visibility="collapsed"
+            )            
+        with input_col:
+            edited_value = st.text_input(
+                label=key,
+                value=value,
+                key=f"{details_name}_value_{key}",
+                type="password" if hide_value else "default",
+                disabled=not st.session_state.edit_mode,
+                label_visibility="collapsed"
+            )                
+        details_edited[edited_key] = edited_value        
+        with button_col:
+            st.button(
+                ":material/delete:",
+                key=f"button_col_del_{details_name}_{edited_key}",
+                disabled=not st.session_state.edit_mode,
+                on_click=delete_dict_key,
+                args=(details_name_edited, edited_key,)
+            )
+    # Adding new key-value pairs to connection details
+    with label_col:
+            new_key = st.text_input(
+                label=key,
+                #value=key,
+                placeholder='<new key>',
+                key=f"{details_name}_new_key",
+                disabled=not st.session_state.edit_mode,
+                label_visibility="collapsed"
+            )            
+    with input_col:
+            new_value = st.text_input(
+                label=key,
+                #value=key,
+                placeholder='<new value>',
+                key=f"{details_name}_new_value",
+                type="password" if hide_value else "default",
+                disabled=not st.session_state.edit_mode,
+                label_visibility="collapsed"
+            )            
+    with button_col:
+        st.button(
+            ":material/add:",
+            key=f"button_col_add_{details_name}",
+            disabled=not st.session_state.edit_mode,
+            on_click=add_dict_key,
+            args=(details_name_edited, details_edited, new_key, new_value)
+        )        
+    return details_edited, new_key, new_value
     
 @st.dialog("Uncommited changes")
 def uncommited_changes():
@@ -111,72 +181,10 @@ for key, value in platform.items():
         )  
 
 st.subheader("Connection details")
+connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_details("connection_details")
 
-if "connection_details_edited" not in st.session_state:
-    st.session_state.connection_details_edited = connection.connection_details.copy()
-    
-connection_details_edited = {}
-#for key, value in connection_details.items():
-for key, value in st.session_state.connection_details_edited.items():
-    label_col, input_col, button_col = st.columns([1, 3, 0.4])
-    with label_col:
-        edited_key = st.text_input(
-            label=key,
-            value=key,
-            key=f"connection_details_key_{key}",
-            disabled=not st.session_state.edit_mode,
-            label_visibility="collapsed"
-        )
-        
-    with input_col:
-        edited_value = st.text_input(
-            label=key,
-            value=value,
-            key=f"connection_details_value_{key}",
-            disabled=not st.session_state.edit_mode,
-            label_visibility="collapsed"
-        )
-            
-    connection_details_edited[edited_key] = edited_value
-    
-    with button_col:
-        st.button(
-            ":material/delete:",
-            key=f"button_col_del_{edited_key}",
-            disabled=not st.session_state.edit_mode,
-            on_click=delete_dict_key,
-            args=(edited_key,)
-        )
-
-# Adding new key-value pairs to connection details
-with label_col:
-        new_key = st.text_input(
-            label=key,
-            #value=key,
-            placeholder='<new key>',
-            key=f"connection_details_new_key",
-            disabled=not st.session_state.edit_mode,
-            label_visibility="collapsed"
-        )
-        
-with input_col:
-        new_value = st.text_input(
-            label=key,
-            #value=key,
-            placeholder='<new value>',
-            key=f"connection_details_new_value",
-            disabled=not st.session_state.edit_mode,
-            label_visibility="collapsed"
-        )
-        
-with button_col:
-    add_button = st.button(
-        ":material/add:",
-        key=f"button_col_add",
-        disabled=not st.session_state.edit_mode,
-        on_click=add_dict_key,
-        args=(connection_details_edited, new_key, new_value)
-    )
+st.subheader("Credentials")
+credentials_edited, creds_new_key, creds_new_value = add_editable_details(details_name="credentials", hide_value=True)
         
 left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
 edit_button = left.button(
@@ -190,8 +198,7 @@ cancel_button = middle.button(
     use_container_width=True,
     disabled=not st.session_state.edit_mode,
     on_click=cancel_edit_mode
-)
-    
+)    
 save_button = right.button(
     "Save",
     use_container_width=True,
@@ -199,7 +206,7 @@ save_button = right.button(
     )
 
 if save_button:
-    if new_key != '' or new_value != '':
+    if conn_det_new_key != '' or conn_det_new_value != '' or creds_new_key != '' or creds_new_value != '':
         uncommited_changes()
         st.stop()        
     st.session_state.edit_mode = False
@@ -207,7 +214,7 @@ if save_button:
         name=connection_edited['name'],
         platform=platform,
         connection_details=connection_details_edited,
-        credentials=connection.credentials,
+        credentials=credentials_edited,
         id=connection_edited['id']
     )
     if connection != connection_edited:
