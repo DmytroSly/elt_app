@@ -230,7 +230,7 @@ class MetadataDB():
         conn = self.conn
         if len(encrypt_columns) > 0:
             for col in encrypt_columns:
-                if  insert_values[col]: # if column contains a value
+                if  insert_values[col] and insert_values[col] != {}: # if column contains a value
                     col_json = json.dumps(insert_values[col]) if type(insert_values[col]) is dict else insert_values[col]
                     insert_values[col] = encryption.cipher.encrypt(col_json.encode())
         cursor = conn.cursor()
@@ -263,10 +263,13 @@ class MetadataDB():
             raise ValueError("At least one column must be provided to update a metadata record")
         
         if len(encrypt_columns) > 0:
-            for col in encrypt_columns:
-                if col in update_values and update_values[col]: # if column contains a value
-                    col_json = json.dumps(update_values[col]) if type(update_values[col]) is dict else update_values[col]
-                    update_values[col] = encryption.cipher.encrypt(col_json.encode())
+            for col in encrypt_columns:              
+                if col in update_values:
+                    if update_values[col] in (None, "", {}):
+                        update_values[col] = None
+                    else:
+                        col_json = json.dumps(update_values[col]) if type(update_values[col]) is dict else update_values[col]
+                        update_values[col] = encryption.cipher.encrypt(col_json.encode())
         
         cursor = conn.cursor()
         set_columns_str = ', '.join(map(lambda col: f'{col} = ?', update_values.keys()))
@@ -372,7 +375,7 @@ class MetadataDB():
         if not connection:
             return None
         platform = self.get_platform(id=connection[2])
-        if connection[4]:
+        if connection[4]: #and connection[4] != '{}':
             cretentials = json.loads(encryption.cipher.decrypt(connection[4]).decode())
         else:
             cretentials = None
@@ -464,7 +467,7 @@ class MetadataDB():
 if __name__ == "__main__":
     
     db = MetadataDB()
-    print(db.get_platforms())
+    print(db.get_connection(name='file_system_my_folder'))
     
     # file_system_connection = {
     #     "local_dir": "C:/Users/dpolishchuk_scalefre/Documents/Repos/csv_files",
