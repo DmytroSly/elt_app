@@ -8,20 +8,22 @@ import pandas as pd
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
-# TODO: Check @st.dialog - prvent clicking Save when new_key and new_value contains some uncommited text
 # TODO: Adding new connection
 # TODO: add Back button to the upper left corner
-
 
 connection_name = st.query_params.get("connection_name")
 
 db = MetadataDB()
 connection = db.get_connection(name=connection_name)
 
-platform = connection.platform.__dict__
-
-connection_details = connection.connection_details
-credentials = connection.credentials
+if connection_name == 'New connection':
+    platform = {}
+    connection_details = {}
+    credentials = {}
+else:
+    platform = connection.platform.__dict__
+    connection_details = connection.connection_details
+    credentials = connection.credentials
 
 st.set_page_config(
     page_title=connection_name or "Connection Details",
@@ -59,22 +61,27 @@ def cancel_edit_mode():
     st.session_state.edit_mode = False
     st.session_state["connection_name"] = connection.name    
     st.session_state.connection_details_edited = connection.connection_details.copy()
-    st.session_state.credentials_edited = connection.credentials.copy()
+    st.session_state.credentials_edited = connection.credentials.copy() if getattr(connection, 'credentials') else {}
     for key, value in connection_details.items():
         st.session_state[f"connection_details_value_{key}"] = value
         st.session_state[f"connection_details_key_{key}"] = key
-    for key, value in credentials.items():
-        st.session_state[f"credentials_value_{key}"] = value
-        st.session_state[f"credentials_key_{key}"] = key
+    if credentials:
+        for key, value in credentials.items():
+            st.session_state[f"credentials_value_{key}"] = value
+            st.session_state[f"credentials_key_{key}"] = key
     reset_add_text_boxes()
     
 def add_editable_details(details_name: str, hide_value: bool = False):
     details_name_edited = f"{details_name}_edited"
     if f"{details_name_edited}" not in st.session_state:
-        st.session_state[details_name_edited] = getattr(connection, details_name).copy()        
+        if getattr(connection, details_name):
+            st.session_state[details_name_edited] = getattr(connection, details_name).copy() if getattr(connection, details_name) else {}
+        else:
+            st.session_state[details_name_edited] = {}
+            
     details_edited = {}
+    label_col, input_col, button_col = st.columns([1, 3, 0.4])
     for key, value in st.session_state[details_name_edited].items():
-        label_col, input_col, button_col = st.columns([1, 3, 0.4])
         with label_col:
             edited_key = st.text_input(
                 label=key,
@@ -104,7 +111,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
     # Adding new key-value pairs to connection details
     with label_col:
             new_key = st.text_input(
-                label=key,
+                label='new_key', #key
                 #value=key,
                 placeholder='<new key>',
                 key=f"{details_name}_new_key",
@@ -113,7 +120,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
             )            
     with input_col:
             new_value = st.text_input(
-                label=key,
+                label='new_value', #key
                 #value=key,
                 placeholder='<new value>',
                 key=f"{details_name}_new_value",
@@ -128,7 +135,8 @@ def add_editable_details(details_name: str, hide_value: bool = False):
             disabled=not st.session_state.edit_mode,
             on_click=add_dict_key,
             args=(details_name_edited, details_edited, new_key, new_value)
-        )        
+        )       
+    #details_edited = None if details_edited == {} else details_edited
     return details_edited, new_key, new_value
     
 @st.dialog("Uncommited changes")
@@ -156,15 +164,17 @@ for key in ["id", "name"]:
     with input_col:
         connection_edited[key] = st.text_input(
             label=key,
-            value=getattr(connection, key),
+            value=getattr(connection, key) if connection_name != 'New connection' else '',
             key=f"connection_{key}",
             disabled=disabled,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            placeholder='<new connection>' if key=='name' else '',
         )  
 
 st.subheader("Platform")
+label_col, input_col = st.columns([1, 3])
+# TODO for new connection: query all platforms and let user chose platform
 for key, value in platform.items():
-    label_col, input_col = st.columns([1, 3])
     with label_col:
         #st.write(key) # with st.write the text is a bit higher than the text in the text box
         st.markdown(
@@ -172,13 +182,22 @@ for key, value in platform.items():
             unsafe_allow_html=True
         )
     with input_col:
-        platform[key] = st.text_input(
-            label=key,
-            value=value,
-            key=f"platform_{key}",
-            disabled=True,
-            label_visibility="collapsed"
-        )  
+        if key == 'name':
+            platform[key] = st.selectbox(
+                label=key,
+                options= value,
+                key=f"platform_{key}",
+                disabled=True,
+                label_visibility="collapsed"
+            )
+        else:
+            platform[key] = st.text_input(
+                label=key,
+                value=value,
+                key=f"platform_{key}",
+                disabled=True,
+                label_visibility="collapsed"
+            )  
 
 st.subheader("Connection details")
 connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_details("connection_details")
