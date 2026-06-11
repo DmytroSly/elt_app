@@ -9,6 +9,8 @@ from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
 # TODO: Adding new connection
+    # TODO: Enable connection name for editing
+    # TODO: handle Edit (disable), cancel (enable) and save(enable) when adding new connecion
 # TODO: add Back button to the upper left corner
 
 connection_name = st.query_params.get("connection_name")
@@ -172,32 +174,72 @@ for key in ["id", "name"]:
         )  
 
 st.subheader("Platform")
-label_col, input_col = st.columns([1, 3])
-# TODO for new connection: query all platforms and let user chose platform
-for key, value in platform.items():
+
+if connection_name == 'New connection':
+    platforms = pd.DataFrame(db.get_platforms())
+    #st.write(platforms)
+    ##st.write(platforms[platforms["name"] == "postgres"]["name"].iloc[0])
+    
+    label_col, input_col = st.columns([1, 3])
     with label_col:
-        #st.write(key) # with st.write the text is a bit higher than the text in the text box
-        st.markdown(
-            f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
-            unsafe_allow_html=True
-        )
+            #st.write(key) # with st.write the text is a bit higher than the text in the text box
+            st.markdown(
+                f"<div style='padding-top: 8px'>Name</div>",
+                unsafe_allow_html=True
+            )            
     with input_col:
-        if key == 'name':
-            platform[key] = st.selectbox(
-                label=key,
-                options= value,
-                key=f"platform_{key}",
-                disabled=True,
-                label_visibility="collapsed"
-            )
-        else:
+        platform_name = st.selectbox(
+                    label="Name",
+                    options= platforms["name"],
+                    key=f"platform_name",
+                    disabled=False,
+                    label_visibility="collapsed"
+                )
+    
+    for key in ["driver_name", "id"]:
+        label_col, input_col = st.columns([1, 3])
+        with label_col:
+            #st.write(key) # with st.write the text is a bit higher than the text in the text box
+            st.markdown(
+                f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
+                unsafe_allow_html=True
+            )            
+        with input_col:
             platform[key] = st.text_input(
                 label=key,
-                value=value,
-                key=f"platform_{key}",
+                value=platforms[platforms["name"] == platform_name][key].iloc[0],
+                # this changing key makes streamlit recreate this widget with a new value
+                # alternatively this can be implemented with session state - re-assigning values to keys in session state
+                key=f"platform_{platform_name}_{key}", 
                 disabled=True,
                 label_visibility="collapsed"
-            )  
+            ) 
+else: # For existing connections
+    for key, value in platform.items():
+        label_col, input_col = st.columns([1, 3])
+        with label_col:
+            #st.write(key) # with st.write the text is a bit higher than the text in the text box
+            st.markdown(
+                f"<div style='padding-top: 8px'>{key.title().replace('_', ' ')}</div>",
+                unsafe_allow_html=True
+            )
+        with input_col:
+            if key == 'name':
+                platform[key] = st.selectbox(
+                    label=key,
+                    options= value,
+                    key=f"platform_{key}",
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
+            else:
+                platform[key] = st.text_input(
+                    label=key,
+                    value=value,
+                    key=f"platform_{key}",
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
 
 st.subheader("Connection details")
 connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_details("connection_details")
