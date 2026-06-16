@@ -9,16 +9,29 @@ from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
 # TODO: Adding new connection
-    # TODO: Enable connection name for editing
-    # TODO: handle Edit (disable), cancel (enable) and save(enable) when adding new connecion
+    # TODO: clear session state when going from connections to add new connections
+    # TODO: Handle cancel button when adding new connection
+    # TODO: Validate inputs before saving connection to the database
 # TODO: add Back button to the upper left corner
 
 connection_name = st.query_params.get("connection_name")
 
+if connection_name == 'New connection':
+    add_mode = True
+    if "connection_details_edited" not in st.session_state:
+        st.session_state.connection_details_edited = {}
+    if "credentials_edited" not in st.session_state:
+        st.session_state.credentials_edited = {}
+else:
+    add_mode = False    
+
+if "edit_mode" not in st.session_state:
+    st.session_state.edit_mode = False
+    
 db = MetadataDB()
 connection = db.get_connection(name=connection_name)
 
-if connection_name == 'New connection':
+if add_mode:
     platform = {}
     connection_details = {}
     credentials = {}
@@ -36,9 +49,6 @@ st.set_page_config(
     #     'About': "# This is a header. This is an *extremely* cool app!"
     # }
 )
-
-if "edit_mode" not in st.session_state:
-    st.session_state.edit_mode = False
     
 def delete_dict_key(details_name_edited, key):
     del st.session_state[details_name_edited][key]
@@ -89,7 +99,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
                 label=key,
                 value=key,
                 key=f"{details_name}_key_{key}",
-                disabled=not st.session_state.edit_mode,
+                disabled=not (st.session_state.edit_mode or add_mode),
                 label_visibility="collapsed"
             )            
         with input_col:
@@ -98,7 +108,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
                 value=value,
                 key=f"{details_name}_value_{key}",
                 type="password" if hide_value else "default",
-                disabled=not st.session_state.edit_mode,
+                disabled=not (st.session_state.edit_mode or add_mode),
                 label_visibility="collapsed"
             )                
         details_edited[edited_key] = edited_value        
@@ -106,7 +116,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
             st.button(
                 ":material/delete:",
                 key=f"button_col_del_{details_name}_{edited_key}",
-                disabled=not st.session_state.edit_mode,
+                disabled=not (st.session_state.edit_mode or add_mode),
                 on_click=delete_dict_key,
                 args=(details_name_edited, edited_key,)
             )
@@ -117,7 +127,7 @@ def add_editable_details(details_name: str, hide_value: bool = False):
                 #value=key,
                 placeholder='<new key>',
                 key=f"{details_name}_new_key",
-                disabled=not st.session_state.edit_mode,
+                disabled=not (st.session_state.edit_mode or add_mode),
                 label_visibility="collapsed"
             )            
     with input_col:
@@ -127,17 +137,19 @@ def add_editable_details(details_name: str, hide_value: bool = False):
                 placeholder='<new value>',
                 key=f"{details_name}_new_value",
                 type="password" if hide_value else "default",
-                disabled=not st.session_state.edit_mode,
+                disabled=not (st.session_state.edit_mode or add_mode),
                 label_visibility="collapsed"
             )            
     with button_col:
         st.button(
             ":material/add:",
             key=f"button_col_add_{details_name}",
-            disabled=not st.session_state.edit_mode,
+            disabled=not (st.session_state.edit_mode or add_mode),
             on_click=add_dict_key,
             args=(details_name_edited, details_edited, new_key, new_value)
-        )       
+        )
+    #st.write(details_name_edited, details_edited)
+    #st.write(new_key, new_value)
     #details_edited = None if details_edited == {} else details_edited
     return details_edited, new_key, new_value
     
@@ -149,7 +161,8 @@ def uncommited_changes():
     
 sidebar_navigation()
 
-st.header(connection_name or "Connection Details")
+# HERE STARTS THE PAGE
+st.header(connection_name )
 # Connection name and id
 connection_edited = {}
 for key in ["id", "name"]:
@@ -162,11 +175,11 @@ for key in ["id", "name"]:
             unsafe_allow_html=True
         )
     
-    disabled = True if key == 'id' else not st.session_state.edit_mode
+    disabled = True if key == 'id' else not (st.session_state.edit_mode or add_mode)
     with input_col:
         connection_edited[key] = st.text_input(
             label=key,
-            value=getattr(connection, key) if connection_name != 'New connection' else '',
+            value=getattr(connection, key) if not add_mode else '',
             key=f"connection_{key}",
             disabled=disabled,
             label_visibility="collapsed",
@@ -175,7 +188,7 @@ for key in ["id", "name"]:
 
 st.subheader("Platform")
 
-if connection_name == 'New connection':
+if add_mode: # Fo adding a new connection
     platforms = pd.DataFrame(db.get_platforms())
     #st.write(platforms)
     ##st.write(platforms[platforms["name"] == "postgres"]["name"].iloc[0])
@@ -244,6 +257,9 @@ else: # For existing connections
 st.subheader("Connection details")
 connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_details("connection_details")
 
+# st.write(st.session_state.connection_details_edited)
+# st.write(connection_details_edited)
+
 st.subheader("Credentials")
 credentials_edited, creds_new_key, creds_new_value = add_editable_details(details_name="credentials", hide_value=True)
         
@@ -251,34 +267,36 @@ left, middle, right, _ = st.columns([1, 1, 1, 4], vertical_alignment="bottom")
 edit_button = left.button(
     "Edit",
     use_container_width=True,
-    disabled=st.session_state.edit_mode,
+    disabled=st.session_state.edit_mode or add_mode,
     on_click=enable_edit_mode
 )
 cancel_button = middle.button(
     "Cancel",
     use_container_width=True,
-    disabled=not st.session_state.edit_mode,
+    disabled=not (st.session_state.edit_mode or add_mode),
     on_click=cancel_edit_mode
 )    
 save_button = right.button(
     "Save",
     use_container_width=True,
-    disabled=not st.session_state.edit_mode,
+    disabled=not (st.session_state.edit_mode or add_mode),
     )
 
 if save_button:
     if conn_det_new_key != '' or conn_det_new_value != '' or creds_new_key != '' or creds_new_value != '':
         uncommited_changes()
-        st.stop()        
-    st.session_state.edit_mode = False
+        st.stop()    
     connection_edited = Connection(
         name=connection_edited['name'],
-        platform=platform,
+        platform=db.get_platform(id=platform["id"]),
         connection_details=connection_details_edited,
         credentials=credentials_edited,
-        id=connection_edited['id']
-    )
+        id=getattr(connection_edited, 'id', None)
+    )   
+    if add_mode:
+        db.add_connection(connection_edited)    
     if connection != connection_edited:
-        db.update_connection(connection_edited)
-        st.query_params["connection_name"] = connection_edited.name
+        st.session_state.edit_mode = False
+        db.update_connection(connection_edited)        
+    st.query_params["connection_name"] = connection_edited.name
     st.rerun()
