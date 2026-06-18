@@ -8,13 +8,15 @@ import pandas as pd
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
-# TODO: Adding new connection
-    # TODO: clear session state when going from connections to add new connections
-    # TODO: Handle cancel button when adding new connection
+# TODO: Adding new connection:
     # TODO: Validate inputs before saving connection to the database
-# TODO: add Back button to the upper left corner
+# TODO: Deleting connections
+# TODO: Add Back button to the upper left corner
+# TODO: Highlight active page in navigation buttons
 
 connection_name = st.query_params.get("connection_name")
+
+db = MetadataDB()
 
 if connection_name == 'New connection':
     add_mode = True
@@ -22,14 +24,14 @@ if connection_name == 'New connection':
         st.session_state.connection_details_edited = {}
     if "credentials_edited" not in st.session_state:
         st.session_state.credentials_edited = {}
+    connection = None
 else:
     add_mode = False    
+    connection = db.get_connection(name=connection_name)
 
 if "edit_mode" not in st.session_state:
     st.session_state.edit_mode = False
-    
-db = MetadataDB()
-connection = db.get_connection(name=connection_name)
+
 
 if add_mode:
     platform = {}
@@ -70,18 +72,19 @@ def enable_edit_mode():
     st.session_state.edit_mode = True
 
 def cancel_edit_mode():
-    st.session_state.edit_mode = False
-    st.session_state["connection_name"] = connection.name    
-    st.session_state.connection_details_edited = connection.connection_details.copy()
-    st.session_state.credentials_edited = connection.credentials.copy() if getattr(connection, 'credentials') else {}
-    for key, value in connection_details.items():
-        st.session_state[f"connection_details_value_{key}"] = value
-        st.session_state[f"connection_details_key_{key}"] = key
-    if credentials:
-        for key, value in credentials.items():
-            st.session_state[f"credentials_value_{key}"] = value
-            st.session_state[f"credentials_key_{key}"] = key
-    reset_add_text_boxes()
+    if not add_mode:
+        st.session_state.edit_mode = False
+        st.session_state["connection_name"] = connection.name    
+        st.session_state.connection_details_edited = connection.connection_details.copy()
+        st.session_state.credentials_edited = connection.credentials.copy() if getattr(connection, 'credentials') else {}
+        for key, value in connection_details.items():
+            st.session_state[f"connection_details_value_{key}"] = value
+            st.session_state[f"connection_details_key_{key}"] = key
+        if credentials:
+            for key, value in credentials.items():
+                st.session_state[f"credentials_value_{key}"] = value
+                st.session_state[f"credentials_key_{key}"] = key
+        reset_add_text_boxes()
     
 def add_editable_details(details_name: str, hide_value: bool = False):
     details_name_edited = f"{details_name}_edited"
@@ -275,7 +278,7 @@ cancel_button = middle.button(
     use_container_width=True,
     disabled=not (st.session_state.edit_mode or add_mode),
     on_click=cancel_edit_mode
-)    
+)
 save_button = right.button(
     "Save",
     use_container_width=True,
@@ -300,3 +303,7 @@ if save_button:
         db.update_connection(connection_edited)        
     st.query_params["connection_name"] = connection_edited.name
     st.rerun()
+
+if cancel_button:
+    if add_mode:
+        st.switch_page("pages/020_connections.py")
