@@ -8,8 +8,6 @@ import pandas as pd
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
-# TODO: Adding new connection:
-    # TODO: Validate inputs before saving connection to the database
 # TODO: Deleting connections
 # TODO: Add Back button to the upper left corner
 # TODO: Highlight active page in navigation buttons
@@ -31,7 +29,25 @@ else:
 
 if "edit_mode" not in st.session_state:
     st.session_state.edit_mode = False
-
+    
+if "connection_name_error" not in st.session_state:
+    st.session_state.connection_name_error = False
+    
+if "connection_details_error" not in st.session_state:
+    st.session_state.connection_details_error = False
+    
+if st.session_state.connection_name_error:
+    st.markdown(
+        """
+        <style>
+            input[aria-label="name"] {
+                border: 2px solid #ff4b4b !important;
+                box-shadow: 0 0 0 1px #ff4b4b !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 if add_mode:
     platform = {}
@@ -74,9 +90,11 @@ def enable_edit_mode():
 def cancel_edit_mode():
     if not add_mode:
         st.session_state.edit_mode = False
-        st.session_state["connection_name"] = connection.name    
+        st.session_state["connection_name"] = connection_name #connection.name    
         st.session_state.connection_details_edited = connection.connection_details.copy()
         st.session_state.credentials_edited = connection.credentials.copy() if getattr(connection, 'credentials') else {}
+        st.session_state.connection_name_error = False
+        st.session_state.connection_details_error = False
         for key, value in connection_details.items():
             st.session_state[f"connection_details_value_{key}"] = value
             st.session_state[f"connection_details_key_{key}"] = key
@@ -187,7 +205,10 @@ for key in ["id", "name"]:
             disabled=disabled,
             label_visibility="collapsed",
             placeholder='<new connection>' if key=='name' else '',
-        )  
+        )
+        
+        if key == "name" and st.session_state.connection_name_error:
+            st.error("Connection name is required.")
 
 st.subheader("Platform")
 
@@ -260,6 +281,9 @@ else: # For existing connections
 st.subheader("Connection details")
 connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_details("connection_details")
 
+if not connection_details_edited and st.session_state.connection_details_error:
+    st.error("Connection details are required.")
+
 # st.write(st.session_state.connection_details_edited)
 # st.write(connection_details_edited)
 
@@ -286,6 +310,19 @@ save_button = right.button(
     )
 
 if save_button:
+    if not connection_edited["name"].strip():
+        st.session_state.connection_name_error = True
+    else:
+        st.session_state.connection_name_error = False
+        
+    if not connection_details_edited:
+        st.session_state.connection_details_error = True
+    else:
+        st.session_state.connection_details_error = False
+
+    if st.session_state.connection_name_error or st.session_state.connection_details_error:
+        st.rerun()
+        
     if conn_det_new_key != '' or conn_det_new_value != '' or creds_new_key != '' or creds_new_value != '':
         uncommited_changes()
         st.stop()    
@@ -294,12 +331,13 @@ if save_button:
         platform=db.get_platform(id=platform["id"]),
         connection_details=connection_details_edited,
         credentials=credentials_edited,
-        id=getattr(connection_edited, 'id', None)
+        id=st.session_state.connection_id #getattr(connection_edited, 'id', None)
     )   
     if add_mode:
-        db.add_connection(connection_edited)    
+        db.add_connection(connection_edited)
     if connection != connection_edited:
         st.session_state.edit_mode = False
+        #st.write(connection_edited)
         db.update_connection(connection_edited)        
     st.query_params["connection_name"] = connection_edited.name
     st.rerun()
