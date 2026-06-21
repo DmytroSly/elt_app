@@ -71,4 +71,6 @@ new_connection = st.button("Add connection")
 if new_connection:
     st.session_state.connection_details_edited = {}
     st.session_state.credentials_edited = {}
+    st.session_state.connection_name_error = False
+    st.session_state.connection_details_error = False
     st.switch_page("pages/021_connection_details.py", query_params={'connection_name': f'{escape("New connection")}'})
