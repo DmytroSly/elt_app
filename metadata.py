@@ -230,7 +230,9 @@ class MetadataDB():
         conn = self.conn
         if len(encrypt_columns) > 0:
             for col in encrypt_columns:
-                if  insert_values[col] and insert_values[col] != {}: # if column contains a value
+                if  insert_values[col] in (None, "", {}):
+                    insert_values[col] = None
+                else:  
                     col_json = json.dumps(insert_values[col]) if type(insert_values[col]) is dict else insert_values[col]
                     insert_values[col] = encryption.cipher.encrypt(col_json.encode())
         cursor = conn.cursor()
