@@ -5,6 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import pandas as pd
+import sqlite3
 from metadata import MetadataDB, Connection
 from st_navigation import sidebar_navigation
 
@@ -35,6 +36,9 @@ if "connection_name_error" not in st.session_state:
     
 if "connection_details_error" not in st.session_state:
     st.session_state.connection_details_error = False
+    
+if "connection_duplicate_name" not in st.session_state:
+    st.session_state.connection_duplicate_name = False
     
 if st.session_state.connection_name_error:
     st.markdown(
@@ -172,6 +176,8 @@ def add_editable_details(details_name: str, hide_value: bool = False):
     #st.write(details_name_edited, details_edited)
     #st.write(new_key, new_value)
     #details_edited = None if details_edited == {} else details_edited
+    if new_key.strip() != '' and new_value.strip() != '':
+        details_edited[new_key] = new_value
     return details_edited, new_key, new_value
     
 @st.dialog("Uncommited changes")
@@ -209,6 +215,8 @@ for key in ["id", "name"]:
         
         if key == "name" and st.session_state.connection_name_error:
             st.error("Connection name is required.")
+        if key == "name" and st.session_state.connection_duplicate_name:
+            st.error("Connection with this name already exists.")
 
 st.subheader("Platform")
 
@@ -284,9 +292,6 @@ connection_details_edited, conn_det_new_key, conn_det_new_value = add_editable_d
 if not connection_details_edited and st.session_state.connection_details_error:
     st.error("Connection details are required.")
 
-# st.write(st.session_state.connection_details_edited)
-# st.write(connection_details_edited)
-
 st.subheader("Credentials")
 credentials_edited, creds_new_key, creds_new_value = add_editable_details(details_name="credentials", hide_value=True)
         
@@ -334,11 +339,22 @@ if save_button:
         id=st.session_state.connection_id #getattr(connection_edited, 'id', None)
     )   
     if add_mode:
-        db.add_connection(connection_edited)
-    if connection != connection_edited:
-        st.session_state.edit_mode = False
-        #st.write(connection_edited)
-        db.update_connection(connection_edited)        
+        try:
+            db.add_connection(connection_edited)
+        except sqlite3.IntegrityError:
+            st.session_state.connection_duplicate_name = True
+            db.conn.rollback()
+            st.rerun()
+    else:
+        if connection != connection_edited:
+            try:
+                db.update_connection(connection_edited)
+                st.session_state.edit_mode = False
+            except sqlite3.IntegrityError:
+                st.session_state.connection_duplicate_name = True
+                db.conn.rollback()
+                st.rerun()
+            
     st.query_params["connection_name"] = connection_edited.name
     st.rerun()
 
